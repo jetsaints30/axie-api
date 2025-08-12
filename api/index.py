@@ -3,35 +3,36 @@ import requests
 
 app = FastAPI()
 
+GRAPHQL_URL = "https://graphql-gateway.axieinfinity.com/graphql"
+
 @app.get("/")
 def home():
     return {"message": "Axie API is running"}
 
 @app.get("/axie/{axie_id}")
 def get_axie(axie_id: int):
-    try:
-        url = "https://graphql-gateway.axieinfinity.com/graphql"
-        query = """
-        query GetAxie($axieId: ID!) {
-          axie(axieId: $axieId) {
-            id
-            bodyParts {
-              name
-              type
-            }
-          }
+    query = """
+    query GetAxie($axieId: ID!) {
+      axie(axieId: $axieId) {
+        id
+        bodyParts {
+          name
+          type
         }
-        """
-        variables = {"axieId": str(axie_id)}
-        headers = {"Content-Type": "application/json"}
+      }
+    }
+    """
+    variables = {"axieId": str(axie_id)}
 
-        response = requests.post(url, json={"query": query, "variables": variables}, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+    response = requests.post(GRAPHQL_URL, json={"query": query, "variables": variables})
+    
+    if response.status_code != 200:
+        return {"error": "Failed to fetch from Axie Infinity API"}
 
-        if "errors" in data:
-            return {"error": data["errors"]}
+    data = response.json()
 
-        return data["data"]["axie"]
-    except Exception as e:
-        return {"error": str(e)}
+    try:
+        parts = data["data"]["axie"]["bodyParts"]
+        return {"axie_id": axie_id, "bodyParts": parts}
+    except:
+        return {"error": "Axie not found or invalid response"}
